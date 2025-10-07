@@ -1706,21 +1706,25 @@ print(f"  'lazy_demo.utils' still lazy? {'lazy_demo.utils' not in sys.modules}")
                 <div class="info-section">
                     <h2>About Lazy Imports (PEP 810)</h2>
                     <p>
-                        Lazy imports introduce explicit syntax (<code>lazy import module</code>) that defers
-                        module loading until first use. The module doesn't appear in <code>sys.modules</code> until
-                        you actually access it, significantly improving startup time for applications with many imports.
+                        PEP 810 introduces explicit syntax for lazy imports: <code>lazy import module</code> and <code>lazy from module import name</code>.
+                        Unlike normal imports which eagerly load modules at the import statement, lazy imports defer loading and execution
+                        until the first time the imported name is actually used. This reduces startup time, memory usage, and unnecessary work, especially
+                        beneficial for command-line tools, test suites, and applications with large dependency graphs. The feature is opt-in, explicit,
+                        and preserves full backwards compatibility.
                     </p>
                     <p>
-                        <strong>Key features:</strong> Local (only affects marked imports), explicit (clear <code>lazy</code> keyword),
-                        controlled (library authors decide), and granular (import-by-import basis).
+                        <strong>Key benefits:</strong> Real-world deployments have demonstrated 50-70% startup time improvements and 30-40% memory
+                        savings in production workloads. Type annotation imports impose no runtime penalty, and unused code paths never trigger module loading.
+                        The design is <em>local</em> (affects only marked imports), <em>explicit</em> (clear lazy keyword), <em>controlled</em> (library authors decide),
+                        and <em>granular</em> (import-by-import basis).
                     </p>
                     <p>
                         <strong>Note:</strong> This is an experimental WebAssembly build of Python.
                         Some features like networking, subprocesses, and threading are not available.
                         For more information, see
                         <a href="https://peps.python.org/pep-0810/" target="_blank">PEP 810</a> and
-                        <a href="https://github.com/python/cpython/blob/main/Tools/wasm/README.md" target="_blank">
-                            Tools/wasm/README.md
+                        <a href="https://github.com/LazyImportsCabal/cpython/tree/lazy" target="_blank">
+                            the implementation repository
                         </a>.
                     </p>
                 </div>
