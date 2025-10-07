@@ -210,30 +210,6 @@
                 color: var(--text-primary);
             }
 
-            .pep-link-button {
-                display: inline-block;
-                padding: 1.25rem 3rem;
-                background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-                color: white;
-                text-decoration: none;
-                border-radius: 0.75rem;
-                font-size: 1.25rem;
-                font-weight: 600;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
-                margin-top: 1.5rem;
-            }
-
-            .pep-link-button:hover {
-                transform: translateY(-3px);
-                box-shadow: 0 8px 30px rgba(99, 102, 241, 0.5);
-            }
-
-            .pep-link-button::after {
-                content: " →";
-                margin-left: 0.5rem;
-            }
-
             #terminal {
                 background: var(--bg-primary);
                 border-radius: 0.5rem;
@@ -1084,32 +1060,38 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                     <h1>Python Lazy Imports</h1>
                     <p class="subtitle">
                         Experience explicit lazy imports in Python with this interactive WebAssembly demo.
+                        See how modules are deferred until first use with sys.modules tracking.
                     </p>
-                    <a href="https://peps.python.org/pep-0810/" target="_blank" class="pep-link-button">
-                        Read PEP 810
-                    </a>
                 </header>
 
                 <div class="main-content">
                     <div class="card">
                         <div class="card-header">
-                            <h2 class="card-title">🎯 Available Demo Module</h2>
+                            <h2 class="card-title">Quick Examples</h2>
                         </div>
                         <div class="card-body">
-                            <p style="margin-bottom: 1rem; color: var(--text-secondary);">
-                                A special <code>lazy_demo</code> package is included in this demo. It contains submodules
-                                that print messages when imported, making it easy to see when lazy imports are reified:
-                            </p>
-                            <ul style="color: var(--text-secondary); margin-left: 1.5rem; line-height: 1.8;">
-                                <li><code>lazy_demo</code> - Main package (prints "📦 lazy_demo package loaded!")</li>
-                                <li><code>lazy_demo.heavy</code> - Heavy computation module (prints "⚙️ lazy_demo.heavy loaded!")</li>
-                                <li><code>lazy_demo.utils</code> - Utility functions (prints "🔧 lazy_demo.utils loaded!")</li>
-                                <li><code>lazy_demo.data</code> - Data module (prints "📊 lazy_demo.data loaded!")</li>
-                            </ul>
-                            <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-                                💡 Try: <code>lazy import lazy_demo.heavy</code> then access <code>lazy_demo.heavy.compute()</code>
-                                to see the lazy import in action!
-                            </p>
+                            <div class="examples">
+                                <div class="example-card" data-example="basic">
+                                    <h3>📦 Basic Usage</h3>
+                                    <p>Module not in sys.modules until used</p>
+                                </div>
+                                <div class="example-card" data-example="fromimport">
+                                    <h3>🔀 From Import</h3>
+                                    <p>Lazy from import syntax</p>
+                                </div>
+                                <div class="example-card" data-example="comparison">
+                                    <h3>⚖️ Eager vs Lazy</h3>
+                                    <p>Direct comparison with sys.modules</p>
+                                </div>
+                                <div class="example-card" data-example="annotations">
+                                    <h3>📚 Type Annotations</h3>
+                                    <p>Annotations don't trigger loading</p>
+                                </div>
+                                <div class="example-card" data-example="demo">
+                                    <h3>✨ Demo Package</h3>
+                                    <p>lazy_demo with import tracking</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1120,24 +1102,18 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                             <h2 class="card-title">Code Editor</h2>
                         </div>
                         <div class="card-body">
-                            <div id="editor"># Demonstrating lazy imports with lazy_demo package
+                            <div id="editor"># Demonstrating lazy imports with sys.modules
 import sys
+lazy import json
 
-# Lazy imports - modules NOT loaded yet!
-lazy import lazy_demo.heavy
-lazy import lazy_demo.utils
-
-print("After lazy imports:")
-print(f"  'lazy_demo.heavy' loaded? {'lazy_demo.heavy' in sys.modules}")
-print(f"  'lazy_demo.utils' loaded? {'lazy_demo.utils' in sys.modules}")
+print("After 'lazy import json':")
+print(f"  'json' in sys.modules: {'json' in sys.modules}")
 print()
 
-# First access triggers loading (watch for print output!)
-print("Calling lazy_demo.heavy.compute()...")
-result = lazy_demo.heavy.compute()
+print("Using json.dumps()...")
+result = json.dumps({"lazy": "imports", "work": True})
 print(f"  Result: {result}")
-print(f"  'lazy_demo.heavy' loaded? {'lazy_demo.heavy' in sys.modules}")
-print(f"  'lazy_demo.utils' still lazy? {'lazy_demo.utils' not in sys.modules}")</div>
+print(f"  'json' in sys.modules: {'json' in sys.modules}")</div>
                             <div class="button-container" style="margin-top: 1rem;">
                                 <button id="run" disabled>▶ Run Code</button>
                                 <button id="repl" disabled>🐍 Start REPL</button>
@@ -1163,6 +1139,10 @@ print(f"  'lazy_demo.utils' still lazy? {'lazy_demo.utils' not in sys.modules}")
                         Lazy imports introduce explicit syntax (<code>lazy import module</code>) that defers
                         module loading until first use. The module doesn't appear in <code>sys.modules</code> until
                         you actually access it, significantly improving startup time for applications with many imports.
+                    </p>
+                    <p>
+                        <strong>Key features:</strong> Local (only affects marked imports), explicit (clear <code>lazy</code> keyword),
+                        controlled (library authors decide), and granular (import-by-import basis).
                     </p>
                     <p>
                         <strong>Note:</strong> This is an experimental WebAssembly build of Python.
