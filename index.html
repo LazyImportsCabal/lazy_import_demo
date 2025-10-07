@@ -1094,6 +1094,28 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                             </div>
                         </div>
                     </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">🎯 Available Demo Module</h2>
+                        </div>
+                        <div class="card-body">
+                            <p style="margin-bottom: 1rem; color: var(--text-secondary);">
+                                A special <code>lazy_demo</code> package is included in this demo. It contains submodules
+                                that print messages when imported, making it easy to see when lazy imports are reified:
+                            </p>
+                            <ul style="color: var(--text-secondary); margin-left: 1.5rem; line-height: 1.8;">
+                                <li><code>lazy_demo</code> - Main package (prints "📦 lazy_demo package loaded!")</li>
+                                <li><code>lazy_demo.heavy</code> - Heavy computation module (prints "⚙️ lazy_demo.heavy loaded!")</li>
+                                <li><code>lazy_demo.utils</code> - Utility functions (prints "🔧 lazy_demo.utils loaded!")</li>
+                                <li><code>lazy_demo.data</code> - Data module (prints "📊 lazy_demo.data loaded!")</li>
+                            </ul>
+                            <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                                💡 Try: <code>lazy import lazy_demo.heavy</code> then access <code>lazy_demo.heavy.compute()</code>
+                                to see the lazy import in action!
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="editor-terminal-layout">
