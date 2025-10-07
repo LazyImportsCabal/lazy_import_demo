@@ -470,6 +470,73 @@
                     transform: scale(1.1);
                 }
             }
+
+            .authors-section {
+                text-align: center;
+                margin: 2rem 0 1rem;
+            }
+
+            .authors-title {
+                font-size: 0.875rem;
+                color: var(--text-muted);
+                margin-bottom: 1rem;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+            }
+
+            .authors-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 1rem;
+                flex-wrap: wrap;
+            }
+
+            .author-avatar {
+                position: relative;
+                display: inline-block;
+            }
+
+            .author-avatar img {
+                width: 64px;
+                height: 64px;
+                border-radius: 50%;
+                border: 3px solid var(--border-color);
+                transition: all 0.3s ease;
+                cursor: pointer;
+                box-shadow: 0 4px 12px var(--shadow);
+                background: var(--bg-tertiary);
+            }
+
+            .author-avatar:hover img {
+                transform: translateY(-5px) scale(1.1);
+                border-color: var(--accent-primary);
+                box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4),
+                            0 0 20px rgba(99, 102, 241, 0.3);
+            }
+
+            .author-avatar::after {
+                content: attr(data-username);
+                position: absolute;
+                bottom: -30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--bg-tertiary);
+                color: var(--text-primary);
+                padding: 0.375rem 0.75rem;
+                border-radius: 0.5rem;
+                font-size: 0.75rem;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+                border: 1px solid var(--border-color);
+                box-shadow: 0 4px 12px var(--shadow);
+            }
+
+            .author-avatar:hover::after {
+                opacity: 1;
+            }
         </style>
         <script
             src="https://unpkg.com/xterm@4.18.0/lib/xterm.js"
@@ -1278,6 +1345,29 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                         <span class="pep-button-icon">📜</span>
                         Read PEP 810 Specification
                     </a>
+                    <div class="authors-section">
+                        <div class="authors-title">PEP 810 Authors</div>
+                        <div class="authors-container">
+                            <a href="https://github.com/pablogsal" target="_blank" class="author-avatar" data-username="@pablogsal">
+                                <img src="avatars/pablogsal.png" alt="pablogsal">
+                            </a>
+                            <a href="https://github.com/kronuz" target="_blank" class="author-avatar" data-username="@kronuz">
+                                <img src="avatars/kronuz.png" alt="kronuz">
+                            </a>
+                            <a href="https://github.com/dinov" target="_blank" class="author-avatar" data-username="@dinov">
+                                <img src="avatars/dinov.png" alt="dinov">
+                            </a>
+                            <a href="https://github.com/yhg1s" target="_blank" class="author-avatar" data-username="@yhg1s">
+                                <img src="avatars/yhg1s.png" alt="yhg1s">
+                            </a>
+                            <a href="https://github.com/noahbkim" target="_blank" class="author-avatar" data-username="@noahbkim">
+                                <img src="avatars/noahbkim.png" alt="noahbkim">
+                            </a>
+                            <a href="https://github.com/brittanyrey" target="_blank" class="author-avatar" data-username="@brittanyrey">
+                                <img src="avatars/brittanyrey.png" alt="brittanyrey">
+                            </a>
+                        </div>
+                    </div>
                 </header>
 
                 <div class="main-content">
