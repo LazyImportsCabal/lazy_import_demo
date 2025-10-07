@@ -7,6 +7,7 @@
         <meta name="author" content="Pablo Galindo Salgado">
         <meta name="description" content="Python Lazy Imports - Interactive WASM Demo">
         <title>Python Lazy Imports - Interactive Demo</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐍</text></svg>">
         <link
             rel="stylesheet"
             href="https://unpkg.com/xterm@4.18.0/css/xterm.css"
@@ -1182,8 +1183,7 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                 const terminal = new WasmTerminal();
                 terminal.open(document.getElementById("terminal"));
 
-                const terminalRepl = new WasmTerminal();
-                terminalRepl.open(document.getElementById("terminal-repl"));
+                let replTerminal = null;
 
                 const stdio = {
                     stdout: (charCode) => {
@@ -1247,10 +1247,10 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                     finishedCallback,
                 );
 
-                // Mode tab switching
+                // Mode tab switching with PyREPL initialization
                 let replStarted = false;
                 document.querySelectorAll('.mode-tab').forEach(tab => {
-                    tab.addEventListener('click', () => {
+                    tab.addEventListener('click', async () => {
                         const mode = tab.dataset.mode;
 
                         // Update active tab
@@ -1261,97 +1261,206 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                         document.querySelectorAll('.mode-content').forEach(c => c.classList.remove('active'));
                         document.getElementById(`${mode}-mode`).classList.add('active');
 
-                        // Auto-start REPL when switching to REPL mode
+                        // Initialize PyREPL when switching to REPL mode
                         if (mode === 'repl' && !replStarted) {
                             replStarted = true;
-                            setTimeout(() => {
-                                replStartButton.click();
-                            }, 100);
+                            await initPyREPL();
                         }
                     });
                 });
 
-                // REPL mode buttons
-                const replStartButton = document.getElementById("repl-start");
-                const replStopButton = document.getElementById("repl-stop");
+                // PyREPL buttons
+                const replRestartButton = document.getElementById("repl-restart");
                 const replClearButton = document.getElementById("repl-clear");
 
-                const stdioRepl = {
-                    stdout: (charCode) => {
-                        terminalRepl.print(charCode);
-                    },
-                    stderr: (charCode) => {
-                        terminalRepl.print(charCode);
-                    },
-                    stdin: async () => {
-                        return await terminalRepl.prompt();
-                    },
-                    message: (text) => {
-                        terminalRepl.writeLine(`\r\n${text}\r\n`);
-                    },
-                };
-
-                const replProgramRunning = (isRunning) => {
-                    if (isRunning) {
-                        replStartButton.setAttribute("disabled", true);
-                        replStopButton.removeAttribute("disabled");
-                    } else {
-                        replStartButton.removeAttribute("disabled");
-                        replStopButton.setAttribute("disabled", true);
+                replClearButton.addEventListener("click", () => {
+                    if (replTerminal) {
+                        replTerminal.clear();
                     }
-                };
-
-                const replReadyCallback = () => {
-                    replStartButton.removeAttribute("disabled");
-                    replClearButton.removeAttribute("disabled");
-                };
-
-                const replFinishedCallback = () => {
-                    replProgramRunning(false);
-                    pythonWorkerManagerRepl.reset();
-                };
-
-                const pythonWorkerManagerRepl = new WorkerManager(
-                    "./python.worker.mjs",
-                    stdioRepl,
-                    replReadyCallback,
-                    replFinishedCallback,
-                );
-
-                replStartButton.addEventListener("click", (e) => {
-                    terminalRepl.clear();
-                    terminalRepl.reset();
-                    const REPL = `
-class WASMREPLKeyboardInterrupt(KeyboardInterrupt):
-    pass
-
-import sys
-import code
-import builtins
-
-def _interrupt_aware_input(prompt=''):
-    line = builtins.input(prompt)
-    if line.strip() == "${_magic_ctrlc_string}":
-        raise KeyboardInterrupt()
-    return line
-
-cprt = 'Type "help", "copyright", "credits" or "license" for more information.'
-banner = f'Python {sys.version} on {sys.platform}\\n{cprt}\\n\\n✨ Try lazy imports: lazy import json'
-
-code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
-`;
-                    replProgramRunning(true);
-                    pythonWorkerManagerRepl.run({ args: ["-c", REPL], files: {} });
                 });
 
-                replStopButton.addEventListener("click", (e) => {
-                    replProgramRunning(false);
-                    pythonWorkerManagerRepl.reset();
+                replRestartButton.addEventListener("click", async () => {
+                    if (replTerminal) {
+                        const container = document.getElementById("terminal-repl");
+                        container.innerHTML = '';
+                        replTerminal = null;
+                    }
+                    replRestartButton.setAttribute("disabled", true);
+                    replClearButton.setAttribute("disabled", true);
+                    await initPyREPL();
                 });
 
-                replClearButton.addEventListener("click", (e) => {
-                    terminalRepl.clear();
-                });
+                // PyREPL initialization
+                async function initPyREPL() {
+                    const { openpty } = await import("https://unpkg.com/xterm-pty/index.mjs");
+                    await import("https://unpkg.com/@xterm/xterm/lib/xterm.js");
+
+                    const createEmscriptenModule = (await import("./python.mjs")).default;
+
+                    replTerminal = new Terminal({
+                        scrollback: 10000,
+                        fontSize: 14,
+                        theme: {
+                            background: "#0a0e1a",
+                            foreground: "#f1f5f9",
+                            cursor: "#6366f1",
+                            cursorAccent: "#0a0e1a",
+                        },
+                        fontFamily: "'JetBrains Mono', monospace",
+                    });
+                    replTerminal.open(document.getElementById("terminal-repl"));
+
+                    const { master, slave: PTY } = openpty();
+                    replTerminal.loadAddon(master);
+                    globalThis.PTY = PTY;
+
+                    const tty_ops = {
+                        ioctl_tcgets: () => {
+                            const termios = PTY.ioctl("TCGETS");
+                            return {
+                                c_iflag: termios.iflag,
+                                c_oflag: termios.oflag,
+                                c_cflag: termios.cflag,
+                                c_lflag: termios.lflag,
+                                c_cc: termios.cc,
+                            };
+                        },
+                        ioctl_tcsets: (_tty, _optional_actions, data) => {
+                            PTY.ioctl("TCSETS", {
+                                iflag: data.c_iflag,
+                                oflag: data.c_oflag,
+                                cflag: data.c_cflag,
+                                lflag: data.c_lflag,
+                                cc: data.c_cc,
+                            });
+                            return 0;
+                        },
+                        ioctl_tiocgwinsz: () => PTY.ioctl("TIOCGWINSZ").reverse(),
+                        get_char: () => { throw new Error("Should not happen"); },
+                        put_char: () => { throw new Error("Should not happen"); },
+                        fsync: () => {},
+                    };
+
+                    const POLLIN = 1;
+                    const POLLOUT = 4;
+                    const waitResult = { READY: 0, SIGNAL: 1, TIMEOUT: 2 };
+
+                    function onReadable() {
+                        var handle;
+                        var promise = new Promise((resolve) => {
+                            handle = PTY.onReadable(() => resolve(waitResult.READY));
+                        });
+                        return [promise, handle];
+                    }
+
+                    function onSignal() {
+                        var handle = { dispose() {} };
+                        var promise = new Promise((resolve) => {});
+                        return [promise, handle];
+                    }
+
+                    function onTimeout(timeout) {
+                        var id;
+                        var promise = new Promise((resolve) => {
+                            if (timeout > 0) {
+                                id = setTimeout(resolve, timeout, waitResult.TIMEOUT);
+                            }
+                        });
+                        var handle = {
+                            dispose() {
+                                if (id) clearTimeout(id);
+                            },
+                        };
+                        return [promise, handle];
+                    }
+
+                    async function waitForReadable(timeout) {
+                        let p1, p2, p3, h1, h2, h3;
+                        try {
+                            [p1, h1] = onReadable();
+                            [p2, h2] = onTimeout(timeout);
+                            [p3, h3] = onSignal();
+                            return await Promise.race([p1, p2, p3]);
+                        } finally {
+                            h1.dispose();
+                            h2.dispose();
+                            h3.dispose();
+                        }
+                    }
+
+                    const FIONREAD = 0x541b;
+                    const tty_stream_ops = {
+                        async readAsync(stream, buffer, offset, length, pos) {
+                            let readBytes = PTY.read(length);
+                            if (length && !readBytes.length) {
+                                const status = await waitForReadable(-1);
+                                if (status === waitResult.READY) {
+                                    readBytes = PTY.read(length);
+                                } else {
+                                    throw new Error("Not implemented");
+                                }
+                            }
+                            buffer.set(readBytes, offset);
+                            return readBytes.length;
+                        },
+                        write: (stream, buffer, offset, length) => {
+                            buffer = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+                            const toWrite = Array.from(buffer.subarray(offset, offset + length));
+                            PTY.write(toWrite);
+                            return length;
+                        },
+                        async pollAsync(stream, timeout) {
+                            if (!PTY.readable && timeout) {
+                                await waitForReadable(timeout);
+                            }
+                            return (PTY.readable ? POLLIN : 0) | (PTY.writable ? POLLOUT : 0);
+                        },
+                        ioctl(stream, request, varargs) {
+                            if (request === FIONREAD) {
+                                const res = PTY.fromLdiscToUpperBuffer.length;
+                                window.Module.HEAPU32[varargs / 4] = res;
+                                return 0;
+                            }
+                            throw new Error("Unimplemented ioctl request");
+                        },
+                    };
+
+                    async function setupStdlib(Module) {
+                        const versionInt = Module.HEAPU32[Module._Py_Version >>> 2];
+                        const major = (versionInt >>> 24) & 0xff;
+                        const minor = (versionInt >>> 16) & 0xff;
+                        Module.FS.mkdirTree(`/lib/python${major}.${minor}/lib-dynload/`);
+                        const resp = await fetch(`python${major}.${minor}.zip`);
+                        const stdlibBuffer = await resp.arrayBuffer();
+                        Module.FS.writeFile(`/lib/python${major}${minor}.zip`, new Uint8Array(stdlibBuffer), { canOwn: true });
+                    }
+
+                    async function setupStdio(Module) {
+                        Object.assign(Module.TTY.default_tty_ops, tty_ops);
+                        Object.assign(Module.TTY.stream_ops, tty_stream_ops);
+                    }
+
+                    const emscriptenSettings = {
+                        async preRun(Module) {
+                            Module.addRunDependency("pre-run");
+                            Module.ENV.TERM = "xterm-256color";
+                            window.Module = Module;
+                            await Promise.all([setupStdlib(Module), setupStdio(Module)]);
+                            Module.removeRunDependency("pre-run");
+                        },
+                    };
+
+                    try {
+                        await createEmscriptenModule(emscriptenSettings);
+                        replRestartButton.removeAttribute("disabled");
+                        replClearButton.removeAttribute("disabled");
+                    } catch (e) {
+                        console.warn(e);
+                        if (window.Module) {
+                            window.Module.__Py_DumpTraceback(2, window.Module._PyGILState_GetThisThreadState());
+                        }
+                    }
+                }
             };
 
             var editor;
@@ -1363,8 +1472,6 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                     fontSize: "14px",
                     showPrintMargin: false,
                     highlightActiveLine: true,
-                    enableBasicAutocompletion: true,
-                    enableLiveAutocompletion: false,
                 });
             });
         </script>
@@ -1429,10 +1536,14 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                                 <li><code>lazy_demo.heavy</code> - Heavy computation module (prints "⚙️ lazy_demo.heavy loaded!")</li>
                                 <li><code>lazy_demo.utils</code> - Utility functions (prints "🔧 lazy_demo.utils loaded!")</li>
                                 <li><code>lazy_demo.data</code> - Data module (prints "📊 lazy_demo.data loaded!")</li>
+                                <li><code>lazy_demo.broken</code> - Demonstrates deferred error handling: imports successfully but has a function that triggers a lazy import of a failing module</li>
                             </ul>
                             <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
                                 💡 Try: <code>lazy import lazy_demo.heavy</code> then access <code>lazy_demo.heavy.compute()</code>
                                 to see the lazy import in action!
+                            </p>
+                            <p style="margin-top: 0.5rem; color: var(--text-muted); font-size: 0.875rem;">
+                                💡 Test deferred errors: <code>import lazy_demo.broken</code> (succeeds), then call <code>lazy_demo.broken.bar()</code> (fails when lazy import triggers).
                             </p>
                         </div>
                     </div>
@@ -1490,13 +1601,12 @@ print(f"  'lazy_demo.utils' still lazy? {'lazy_demo.utils' not in sys.modules}")
                 <div id="repl-mode" class="mode-content">
                     <div class="card">
                         <div class="card-header">
-                            <h2 class="card-title">Interactive REPL</h2>
+                            <h2 class="card-title">Interactive REPL (PyREPL)</h2>
                         </div>
                         <div class="card-body">
                             <div id="terminal-repl"></div>
                             <div class="button-container" style="margin-top: 1rem;">
-                                <button id="repl-start" disabled>🐍 Start REPL</button>
-                                <button id="repl-stop" disabled>⬛ Stop</button>
+                                <button id="repl-restart" disabled>🔄 Restart REPL</button>
                                 <button id="repl-clear" disabled>🗑 Clear</button>
                             </div>
                         </div>
