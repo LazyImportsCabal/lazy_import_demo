@@ -224,7 +224,8 @@
                 border-radius: 0.5rem;
                 padding: 1rem;
                 min-height: 500px;
-                overflow: hidden;
+                max-height: 600px;
+                overflow: auto;
             }
 
             #repl-mode.active {
@@ -589,6 +590,14 @@
         ></script>
         <script type="module">
             const _magic_ctrlc_string = "__WASM_REPL_CTRLC_" + (Date.now()) + "__";
+
+            // Detect if browser supports PyREPL (Chrome/Chromium with JSPI)
+            function supportsPyREPL() {
+                const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+                const isEdge = /Edg/.test(navigator.userAgent);
+                return isChrome || isEdge;
+            }
+
             class WorkerManager {
                 constructor(
                     workerURL,
@@ -1185,6 +1194,18 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
 
                 let replTerminal = null;
 
+                // Show appropriate REPL notice based on browser
+                const replNotice = document.getElementById("repl-notice");
+                if (supportsPyREPL()) {
+                    replNotice.style.display = "block";
+                    replNotice.innerHTML = '<strong>🚀 PyREPL Mode:</strong> Enhanced REPL with syntax highlighting, better editing, and multiline support.';
+                } else {
+                    replNotice.style.display = "block";
+                    replNotice.style.background = "rgba(245, 158, 11, 0.15)";
+                    replNotice.style.borderColor = "var(--warning)";
+                    replNotice.innerHTML = '<strong>⚠️ Basic REPL Mode:</strong> Using fallback REPL. For enhanced PyREPL with syntax highlighting, please use Chrome or Edge.';
+                }
+
                 const stdio = {
                     stdout: (charCode) => {
                         terminal.print(charCode);
@@ -1249,6 +1270,8 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
 
                 // Mode tab switching with PyREPL initialization
                 let replStarted = false;
+                let usePyREPL = supportsPyREPL();
+
                 document.querySelectorAll('.mode-tab').forEach(tab => {
                     tab.addEventListener('click', async () => {
                         const mode = tab.dataset.mode;
@@ -1261,10 +1284,14 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                         document.querySelectorAll('.mode-content').forEach(c => c.classList.remove('active'));
                         document.getElementById(`${mode}-mode`).classList.add('active');
 
-                        // Initialize PyREPL when switching to REPL mode
+                        // Initialize REPL when switching to REPL mode
                         if (mode === 'repl' && !replStarted) {
                             replStarted = true;
-                            await initPyREPL();
+                            if (usePyREPL) {
+                                await initPyREPL();
+                            } else {
+                                await initBasicREPL();
+                            }
                         }
                     });
                 });
@@ -1285,10 +1312,71 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                         container.innerHTML = '';
                         replTerminal = null;
                     }
+                    if (replWorkerManager) {
+                        replWorkerManager.reset();
+                    }
                     replRestartButton.setAttribute("disabled", true);
                     replClearButton.setAttribute("disabled", true);
-                    await initPyREPL();
+                    if (usePyREPL) {
+                        await initPyREPL();
+                    } else {
+                        await initBasicREPL();
+                    }
                 });
+
+                // Basic REPL initialization (for non-Chrome browsers)
+                let replWorkerManager = null;
+                async function initBasicREPL() {
+                    const container = document.getElementById("terminal-repl");
+                    container.innerHTML = '';
+
+                    const replWasmTerminal = new WasmTerminal();
+                    replWasmTerminal.open(container);
+                    replTerminal = replWasmTerminal;
+
+                    const replStdio = {
+                        stdout: (charCode) => replWasmTerminal.print(charCode),
+                        stderr: (charCode) => replWasmTerminal.print(charCode),
+                        stdin: async () => await replWasmTerminal.prompt(),
+                        message: (text) => replWasmTerminal.writeLine(`\r\n${text}\r\n`),
+                    };
+
+                    const REPL = `
+import sys
+import code
+
+import builtins
+
+def _interrupt_aware_input(prompt=''):
+    line = builtins.input(prompt)
+    if line.strip() == "${_magic_ctrlc_string}":
+        raise KeyboardInterrupt()
+    return line
+
+cprt = 'Type "help", "copyright", "credits" or "license" for more information.'
+banner = f'Python {sys.version} on {sys.platform}\\n{cprt}'
+
+code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
+`;
+
+                    const replReadyCallback = () => {
+                        replRestartButton.removeAttribute("disabled");
+                        replClearButton.removeAttribute("disabled");
+                        replWorkerManager.run({ args: ["-c", REPL], files: {} });
+                    };
+
+                    const replFinishedCallback = () => {
+                        replStdio.message("REPL session ended.");
+                        replRestartButton.removeAttribute("disabled");
+                    };
+
+                    replWorkerManager = new WorkerManager(
+                        "./python.worker.mjs",
+                        replStdio,
+                        replReadyCallback,
+                        replFinishedCallback,
+                    );
+                }
 
                 // PyREPL initialization
                 async function initPyREPL() {
@@ -1601,9 +1689,11 @@ print(f"  'lazy_demo.utils' still lazy? {'lazy_demo.utils' not in sys.modules}")
                 <div id="repl-mode" class="mode-content">
                     <div class="card">
                         <div class="card-header">
-                            <h2 class="card-title">Interactive REPL (PyREPL)</h2>
+                            <h2 class="card-title">Interactive REPL</h2>
                         </div>
                         <div class="card-body">
+                            <div id="repl-notice" style="background: rgba(99, 102, 241, 0.15); border: 1px solid var(--accent-primary); border-radius: 0.5rem; padding: 0.75rem 1rem; margin-bottom: 1rem; color: var(--text-primary); font-size: 0.875rem; display: none;">
+                            </div>
                             <div id="terminal-repl"></div>
                             <div class="button-container" style="margin-top: 1rem;">
                                 <button id="repl-restart" disabled>🔄 Restart REPL</button>
