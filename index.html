@@ -1061,6 +1061,7 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                 );
 
                 // Mode tab switching
+                let replStarted = false;
                 document.querySelectorAll('.mode-tab').forEach(tab => {
                     tab.addEventListener('click', () => {
                         const mode = tab.dataset.mode;
@@ -1072,6 +1073,14 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                         // Update active content
                         document.querySelectorAll('.mode-content').forEach(c => c.classList.remove('active'));
                         document.getElementById(`${mode}-mode`).classList.add('active');
+
+                        // Auto-start REPL when switching to REPL mode
+                        if (mode === 'repl' && !replStarted) {
+                            replStarted = true;
+                            setTimeout(() => {
+                                replStartButton.click();
+                            }, 100);
+                        }
                     });
                 });
 
