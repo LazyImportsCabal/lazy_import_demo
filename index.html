@@ -328,6 +328,43 @@
             .github-link:hover {
                 color: var(--accent-secondary);
             }
+
+            .mode-tabs {
+                display: flex;
+                gap: 0.5rem;
+                margin-bottom: 2rem;
+            }
+
+            .mode-tab {
+                padding: 0.75rem 2rem;
+                background: var(--bg-tertiary);
+                color: var(--text-secondary);
+                border: 1px solid var(--border-color);
+                border-radius: 0.5rem;
+                cursor: pointer;
+                font-size: 1rem;
+                font-weight: 600;
+                transition: all 0.2s;
+            }
+
+            .mode-tab:hover {
+                border-color: var(--accent-primary);
+                color: var(--text-primary);
+            }
+
+            .mode-tab.active {
+                background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+                color: white;
+                border-color: transparent;
+            }
+
+            .mode-content {
+                display: none;
+            }
+
+            .mode-content.active {
+                display: block;
+            }
         </style>
         <script
             src="https://unpkg.com/xterm@4.18.0/lib/xterm.js"
@@ -935,6 +972,9 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                 const terminal = new WasmTerminal();
                 terminal.open(document.getElementById("terminal"));
 
+                const terminalRepl = new WasmTerminal();
+                terminalRepl.open(document.getElementById("terminal-repl"));
+
                 const stdio = {
                     stdout: (charCode) => {
                         terminal.print(charCode);
@@ -952,11 +992,9 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
 
                 const programRunning = (isRunning) => {
                     if (isRunning) {
-                        replButton.setAttribute("disabled", true);
                         runButton.setAttribute("disabled", true);
                         stopButton.removeAttribute("disabled");
                     } else {
-                        replButton.removeAttribute("disabled");
                         runButton.removeAttribute("disabled");
                         stopButton.setAttribute("disabled", true);
                     }
@@ -973,9 +1011,97 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                     });
                 });
 
-                replButton.addEventListener("click", (e) => {
+                stopButton.addEventListener("click", (e) => {
+                    programRunning(false);
+                    pythonWorkerManager.reset();
+                });
+
+                clearButton.addEventListener("click", (e) => {
                     terminal.clear();
-                    terminal.reset();
+                });
+
+                const readyCallback = () => {
+                    runButton.removeAttribute("disabled");
+                    clearButton.removeAttribute("disabled");
+                };
+
+                const finishedCallback = () => {
+                    programRunning(false);
+                    pythonWorkerManager.reset();
+                };
+
+                const pythonWorkerManager = new WorkerManager(
+                    "./python.worker.mjs",
+                    stdio,
+                    readyCallback,
+                    finishedCallback,
+                );
+
+                // Mode tab switching
+                document.querySelectorAll('.mode-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const mode = tab.dataset.mode;
+
+                        // Update active tab
+                        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+
+                        // Update active content
+                        document.querySelectorAll('.mode-content').forEach(c => c.classList.remove('active'));
+                        document.getElementById(`${mode}-mode`).classList.add('active');
+                    });
+                });
+
+                // REPL mode buttons
+                const replStartButton = document.getElementById("repl-start");
+                const replStopButton = document.getElementById("repl-stop");
+                const replClearButton = document.getElementById("repl-clear");
+
+                const stdioRepl = {
+                    stdout: (charCode) => {
+                        terminalRepl.print(charCode);
+                    },
+                    stderr: (charCode) => {
+                        terminalRepl.print(charCode);
+                    },
+                    stdin: async () => {
+                        return await terminalRepl.prompt();
+                    },
+                    message: (text) => {
+                        terminalRepl.writeLine(`\r\n${text}\r\n`);
+                    },
+                };
+
+                const replProgramRunning = (isRunning) => {
+                    if (isRunning) {
+                        replStartButton.setAttribute("disabled", true);
+                        replStopButton.removeAttribute("disabled");
+                    } else {
+                        replStartButton.removeAttribute("disabled");
+                        replStopButton.setAttribute("disabled", true);
+                    }
+                };
+
+                const replReadyCallback = () => {
+                    replStartButton.removeAttribute("disabled");
+                    replClearButton.removeAttribute("disabled");
+                };
+
+                const replFinishedCallback = () => {
+                    replProgramRunning(false);
+                    pythonWorkerManagerRepl.reset();
+                };
+
+                const pythonWorkerManagerRepl = new WorkerManager(
+                    "./python.worker.mjs",
+                    stdioRepl,
+                    replReadyCallback,
+                    replFinishedCallback,
+                );
+
+                replStartButton.addEventListener("click", (e) => {
+                    terminalRepl.clear();
+                    terminalRepl.reset();
                     const REPL = `
 class WASMREPLKeyboardInterrupt(KeyboardInterrupt):
     pass
@@ -995,45 +1121,17 @@ banner = f'Python {sys.version} on {sys.platform}\\n{cprt}\\n\\n✨ Try lazy imp
 
 code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
 `;
-                    programRunning(true);
-                    pythonWorkerManager.run({ args: ["-c", REPL], files: {} });
+                    replProgramRunning(true);
+                    pythonWorkerManagerRepl.run({ args: ["-c", REPL], files: {} });
                 });
 
-                stopButton.addEventListener("click", (e) => {
-                    programRunning(false);
-                    pythonWorkerManager.reset();
+                replStopButton.addEventListener("click", (e) => {
+                    replProgramRunning(false);
+                    pythonWorkerManagerRepl.reset();
                 });
 
-                clearButton.addEventListener("click", (e) => {
-                    terminal.clear();
-                });
-
-                const readyCallback = () => {
-                    replButton.removeAttribute("disabled");
-                    runButton.removeAttribute("disabled");
-                    clearButton.removeAttribute("disabled");
-                };
-
-                const finishedCallback = () => {
-                    programRunning(false);
-                    pythonWorkerManager.reset();
-                };
-
-                const pythonWorkerManager = new WorkerManager(
-                    "./python.worker.mjs",
-                    stdio,
-                    readyCallback,
-                    finishedCallback,
-                );
-
-                // Example card click handlers
-                document.querySelectorAll('.example-card').forEach(card => {
-                    card.addEventListener('click', () => {
-                        const exampleKey = card.dataset.example;
-                        if (examples[exampleKey]) {
-                            editor.setValue(examples[exampleKey], -1);
-                        }
-                    });
+                replClearButton.addEventListener("click", (e) => {
+                    terminalRepl.clear();
                 });
             };
 
@@ -1067,68 +1165,88 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                 <div class="main-content">
                     <div class="card">
                         <div class="card-header">
-                            <h2 class="card-title">Quick Examples</h2>
+                            <h2 class="card-title">🎯 Available Demo Module</h2>
                         </div>
                         <div class="card-body">
-                            <div class="examples">
-                                <div class="example-card" data-example="basic">
-                                    <h3>📦 Basic Usage</h3>
-                                    <p>Module not in sys.modules until used</p>
+                            <p style="margin-bottom: 1rem; color: var(--text-secondary);">
+                                A special <code>lazy_demo</code> package is included in this demo. It contains submodules
+                                that print messages when imported, making it easy to see when lazy imports are reified:
+                            </p>
+                            <ul style="color: var(--text-secondary); margin-left: 1.5rem; line-height: 1.8;">
+                                <li><code>lazy_demo</code> - Main package (prints "📦 lazy_demo package loaded!")</li>
+                                <li><code>lazy_demo.heavy</code> - Heavy computation module (prints "⚙️ lazy_demo.heavy loaded!")</li>
+                                <li><code>lazy_demo.utils</code> - Utility functions (prints "🔧 lazy_demo.utils loaded!")</li>
+                                <li><code>lazy_demo.data</code> - Data module (prints "📊 lazy_demo.data loaded!")</li>
+                            </ul>
+                            <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                                💡 Try: <code>lazy import lazy_demo.heavy</code> then access <code>lazy_demo.heavy.compute()</code>
+                                to see the lazy import in action!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mode-tabs">
+                    <button class="mode-tab active" data-mode="editor">💻 Code Editor</button>
+                    <button class="mode-tab" data-mode="repl">🐍 Interactive REPL</button>
+                </div>
+
+                <div id="editor-mode" class="mode-content active">
+                    <div class="editor-terminal-layout">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">Code Editor</h2>
+                            </div>
+                            <div class="card-body">
+                                <div id="editor"># Demonstrating lazy imports with lazy_demo package
+import sys
+
+# Lazy imports - modules NOT loaded yet!
+lazy import lazy_demo.heavy
+lazy import lazy_demo.utils
+
+print("After lazy imports:")
+print(f"  'lazy_demo.heavy' loaded? {'lazy_demo.heavy' in sys.modules}")
+print(f"  'lazy_demo.utils' loaded? {'lazy_demo.utils' in sys.modules}")
+print()
+
+# First access triggers loading (watch for print output!)
+print("Calling lazy_demo.heavy.compute()...")
+result = lazy_demo.heavy.compute()
+print(f"  Result: {result}")
+print(f"  'lazy_demo.heavy' loaded? {'lazy_demo.heavy' in sys.modules}")
+print(f"  'lazy_demo.utils' still lazy? {'lazy_demo.utils' not in sys.modules}")</div>
+                                <div class="button-container" style="margin-top: 1rem;">
+                                    <button id="run" disabled>▶ Run Code</button>
+                                    <button id="stop" disabled>⬛ Stop</button>
+                                    <button id="clear" disabled>🗑 Clear</button>
                                 </div>
-                                <div class="example-card" data-example="fromimport">
-                                    <h3>🔀 From Import</h3>
-                                    <p>Lazy from import syntax</p>
-                                </div>
-                                <div class="example-card" data-example="comparison">
-                                    <h3>⚖️ Eager vs Lazy</h3>
-                                    <p>Direct comparison with sys.modules</p>
-                                </div>
-                                <div class="example-card" data-example="annotations">
-                                    <h3>📚 Type Annotations</h3>
-                                    <p>Annotations don't trigger loading</p>
-                                </div>
-                                <div class="example-card" data-example="demo">
-                                    <h3>✨ Demo Package</h3>
-                                    <p>lazy_demo with import tracking</p>
-                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="card-title">Terminal Output</h2>
+                            </div>
+                            <div class="card-body">
+                                <div id="terminal"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="editor-terminal-layout">
+                <div id="repl-mode" class="mode-content">
                     <div class="card">
                         <div class="card-header">
-                            <h2 class="card-title">Code Editor</h2>
+                            <h2 class="card-title">Interactive REPL</h2>
                         </div>
                         <div class="card-body">
-                            <div id="editor"># Demonstrating lazy imports with sys.modules
-import sys
-lazy import json
-
-print("After 'lazy import json':")
-print(f"  'json' in sys.modules: {'json' in sys.modules}")
-print()
-
-print("Using json.dumps()...")
-result = json.dumps({"lazy": "imports", "work": True})
-print(f"  Result: {result}")
-print(f"  'json' in sys.modules: {'json' in sys.modules}")</div>
+                            <div id="terminal-repl"></div>
                             <div class="button-container" style="margin-top: 1rem;">
-                                <button id="run" disabled>▶ Run Code</button>
-                                <button id="repl" disabled>🐍 Start REPL</button>
-                                <button id="stop" disabled>⬛ Stop</button>
-                                <button id="clear" disabled>🗑 Clear</button>
+                                <button id="repl-start" disabled>🐍 Start REPL</button>
+                                <button id="repl-stop" disabled>⬛ Stop</button>
+                                <button id="repl-clear" disabled>🗑 Clear</button>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-header">
-                            <h2 class="card-title">Terminal Output</h2>
-                        </div>
-                        <div class="card-body">
-                            <div id="terminal"></div>
                         </div>
                     </div>
                 </div>
