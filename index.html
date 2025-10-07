@@ -210,6 +210,30 @@
                 color: var(--text-primary);
             }
 
+            .pep-link-button {
+                display: inline-block;
+                padding: 1.25rem 3rem;
+                background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+                color: white;
+                text-decoration: none;
+                border-radius: 0.75rem;
+                font-size: 1.25rem;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+                margin-top: 1.5rem;
+            }
+
+            .pep-link-button:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 30px rgba(99, 102, 241, 0.5);
+            }
+
+            .pep-link-button::after {
+                content: " →";
+                margin-left: 0.5rem;
+            }
+
             #terminal {
                 background: var(--bg-primary);
                 border-radius: 0.5rem;
@@ -1061,6 +1085,9 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                     <p class="subtitle">
                         Experience explicit lazy imports in Python with this interactive WebAssembly demo.
                     </p>
+                    <a href="https://peps.python.org/pep-0810/" target="_blank" class="pep-link-button">
+                        Read PEP 810
+                    </a>
                 </header>
 
                 <div class="main-content">
@@ -1093,18 +1120,24 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                             <h2 class="card-title">Code Editor</h2>
                         </div>
                         <div class="card-body">
-                            <div id="editor"># Demonstrating lazy imports with sys.modules
+                            <div id="editor"># Demonstrating lazy imports with lazy_demo package
 import sys
-lazy import json
 
-print("After 'lazy import json':")
-print(f"  'json' in sys.modules: {'json' in sys.modules}")
+# Lazy imports - modules NOT loaded yet!
+lazy import lazy_demo.heavy
+lazy import lazy_demo.utils
+
+print("After lazy imports:")
+print(f"  'lazy_demo.heavy' loaded? {'lazy_demo.heavy' in sys.modules}")
+print(f"  'lazy_demo.utils' loaded? {'lazy_demo.utils' in sys.modules}")
 print()
 
-print("Using json.dumps()...")
-result = json.dumps({"lazy": "imports", "work": True})
+# First access triggers loading (watch for print output!)
+print("Calling lazy_demo.heavy.compute()...")
+result = lazy_demo.heavy.compute()
 print(f"  Result: {result}")
-print(f"  'json' in sys.modules: {'json' in sys.modules}")</div>
+print(f"  'lazy_demo.heavy' loaded? {'lazy_demo.heavy' in sys.modules}")
+print(f"  'lazy_demo.utils' still lazy? {'lazy_demo.utils' not in sys.modules}")</div>
                             <div class="button-container" style="margin-top: 1rem;">
                                 <button id="run" disabled>▶ Run Code</button>
                                 <button id="repl" disabled>🐍 Start REPL</button>
