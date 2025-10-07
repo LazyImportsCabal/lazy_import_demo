@@ -538,6 +538,43 @@
             .author-avatar:hover::after {
                 opacity: 1;
             }
+
+            .warning-banner {
+                position: absolute;
+                top: 1rem;
+                left: 1rem;
+                background: rgba(245, 158, 11, 0.15);
+                border: 2px solid var(--warning);
+                border-radius: 0.75rem;
+                padding: 0.75rem 1rem;
+                color: var(--text-primary);
+                font-size: 0.875rem;
+                box-shadow: 0 4px 12px var(--shadow);
+                backdrop-filter: blur(10px);
+                z-index: 1000;
+                max-width: 280px;
+            }
+
+            .warning-banner-icon {
+                display: inline-block;
+                margin-right: 0.5rem;
+                font-size: 1.1rem;
+            }
+
+            .warning-banner-text {
+                font-weight: 500;
+                line-height: 1.4;
+            }
+
+            @media (max-width: 768px) {
+                .warning-banner {
+                    position: relative;
+                    top: 0;
+                    left: 0;
+                    margin: 1rem;
+                    max-width: none;
+                }
+            }
         </style>
         <script
             src="https://unpkg.com/xterm@4.18.0/lib/xterm.js"
@@ -1333,21 +1370,16 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
         </script>
     </head>
     <body>
+        <div class="warning-banner">
+            <span class="warning-banner-icon">⚠️</span>
+            <span class="warning-banner-text">This implementation may be out of date or contain bugs. Always refer to the PEP document.</span>
+        </div>
         <div id="repldemo">
             <div class="container">
                 <header>
                     <div class="badge">PEP 810 Implementation</div>
                     <h1>Python Lazy Imports</h1>
-                    <p class="subtitle">
-                        Experience explicit lazy imports in Python with this interactive WebAssembly demo.
-                        See how modules are deferred until first use with sys.modules tracking.
-                    </p>
-                    <a href="https://peps.python.org/pep-0810/" target="_blank" class="pep-button">
-                        <span class="pep-button-icon">📜</span>
-                        Read PEP 810 Specification
-                    </a>
                     <div class="authors-section">
-                        <div class="authors-title">PEP 810 Authors</div>
                         <div class="authors-container">
                             <a href="https://github.com/pablogsal" target="_blank" class="author-avatar" data-name="Pablo Galindo" data-username="@pablogsal">
                                 <img src="avatars/pablogsal.png" alt="pablogsal">
@@ -1372,6 +1404,14 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                             </a>
                         </div>
                     </div>
+                    <p class="subtitle">
+                        Explore the semantics from the proposal with this interactive WebAssembly demo.
+                        Write Python code in the editor, run it in your browser, or experiment in the interactive REPL.
+                    </p>
+                    <a href="https://peps.python.org/pep-0810/" target="_blank" class="pep-button">
+                        <span class="pep-button-icon">📜</span>
+                        Read PEP 810 Specification
+                    </a>
                 </header>
 
                 <div class="main-content">
