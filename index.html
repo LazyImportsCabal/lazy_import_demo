@@ -1262,7 +1262,7 @@ print(f"'lazy_demo.utils' still lazy: {'lazy_demo.utils' not in sys.modules}")`
                 };
 
                 const pythonWorkerManager = new WorkerManager(
-                    "./python.worker.mjs",
+                    `./python.worker.mjs?v=${Date.now()}`,
                     stdio,
                     readyCallback,
                     finishedCallback,
@@ -1371,7 +1371,7 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                     };
 
                     replWorkerManager = new WorkerManager(
-                        "./python.worker.mjs",
+                        `./python.worker.mjs?v=${Date.now()}`,
                         replStdio,
                         replReadyCallback,
                         replFinishedCallback,
@@ -1383,7 +1383,7 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                     const { openpty } = await import("https://unpkg.com/xterm-pty/index.mjs");
                     await import("https://unpkg.com/@xterm/xterm/lib/xterm.js");
 
-                    const createEmscriptenModule = (await import("./python.mjs")).default;
+                    const createEmscriptenModule = (await import(`./python.mjs?v=${Date.now()}`)).default;
 
                     replTerminal = new Terminal({
                         scrollback: 10000,
@@ -1518,7 +1518,7 @@ code.interact(banner=banner, readfunc=_interrupt_aware_input, exitmsg='')
                         const major = (versionInt >>> 24) & 0xff;
                         const minor = (versionInt >>> 16) & 0xff;
                         Module.FS.mkdirTree(`/lib/python${major}.${minor}/lib-dynload/`);
-                        const resp = await fetch(`python${major}.${minor}.zip`);
+                        const resp = await fetch(`python${major}.${minor}.zip?v=${Date.now()}`);
                         const stdlibBuffer = await resp.arrayBuffer();
                         Module.FS.writeFile(`/lib/python${major}${minor}.zip`, new Uint8Array(stdlibBuffer), { canOwn: true });
                     }
